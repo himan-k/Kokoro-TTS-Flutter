@@ -80,6 +80,8 @@ class OnnxModelRunner {
 
       // Get input names from session
       final inputNames = _session!.inputNames;
+      debugPrint('ONNX Model Input Names: $inputNames');
+
       if (inputNames.length < 3) {
         throw Exception(
             'Model requires at least 3 inputs: tokens/input_ids, style, and speed');
@@ -95,10 +97,32 @@ class OnnxModelRunner {
           print('Using newer model format with input_ids');
           // Newer model format
           // CRITICAL: Use Int64List for token IDs to match Python int64 type
-          inputs['input_ids'] = await OrtValue.fromList(
-            Int64List.fromList(paddedTokens),
-            [1, paddedTokens.length], // Shape: [batch_size, sequence_length]
-          );
+          debugPrint(
+              'Creating input_ids tensor with Int64List of length ${paddedTokens.length}');
+
+          // Try explicit Int64 tensor creation
+          final tokenTensor = Int64List.fromList(paddedTokens);
+          debugPrint(
+              'Token tensor type: ${tokenTensor.runtimeType}, values: $tokenTensor');
+
+          // Alternative: Try creating tensor with explicit shape information
+          try {
+            inputs['input_ids'] = await OrtValue.fromList(
+              tokenTensor,
+              [1, paddedTokens.length], // Shape: [batch_size, sequence_length]
+            );
+          } catch (e) {
+            debugPrint('Failed to create input_ids tensor: $e');
+            // Fallback: try without batching
+            inputs['input_ids'] = await OrtValue.fromList(
+              tokenTensor,
+              [
+                paddedTokens.length
+              ], // Shape: [sequence_length] - try without batch dimension
+            );
+          }
+          debugPrint(
+              'Creating style tensor with Float32List of length ${voice.length}');
           inputs['style'] = await OrtValue.fromList(
             voice.toList(),
             [
@@ -106,18 +130,43 @@ class OnnxModelRunner {
               voice.length
             ], // Shape: [1, embedding_size] - Model expects rank 2
           );
+          debugPrint('Creating speed tensor with double value: $speed');
           inputs['speed'] = await OrtValue.fromList(
             [speed],
             [1], // Shape: [1]
           );
         } else {
           print('Using older model format with tokens');
+          debugPrint(
+              'Input names: ${inputNames[0]}, ${inputNames[1]}, ${inputNames[2]}');
           // Older model format
           // CRITICAL: Use Int64List for token IDs to match Python int64 type
-          inputs[inputNames[0]] = await OrtValue.fromList(
-            Int64List.fromList(paddedTokens),
-            [1, paddedTokens.length], // Shape: [batch_size, sequence_length]
-          );
+          debugPrint(
+              'Creating ${inputNames[0]} tensor with Int64List of length ${paddedTokens.length}');
+
+          // Try explicit Int64 tensor creation
+          final tokenTensor = Int64List.fromList(paddedTokens);
+          debugPrint(
+              'Token tensor type: ${tokenTensor.runtimeType}, values: $tokenTensor');
+
+          // Alternative: Try creating tensor with explicit shape information
+          try {
+            inputs[inputNames[0]] = await OrtValue.fromList(
+              tokenTensor,
+              [1, paddedTokens.length], // Shape: [batch_size, sequence_length]
+            );
+          } catch (e) {
+            debugPrint('Failed to create ${inputNames[0]} tensor: $e');
+            // Fallback: try without batching
+            inputs[inputNames[0]] = await OrtValue.fromList(
+              tokenTensor,
+              [
+                paddedTokens.length
+              ], // Shape: [sequence_length] - try without batch dimension
+            );
+          }
+          debugPrint(
+              'Creating ${inputNames[1]} tensor with Float32List of length ${voice.length}');
           inputs[inputNames[1]] = await OrtValue.fromList(
             voice.toList(),
             [
@@ -125,11 +174,16 @@ class OnnxModelRunner {
               voice.length
             ], // Shape: [1, embedding_size] - Model expects rank 2
           );
+          debugPrint(
+              'Creating ${inputNames[2]} tensor with double value: $speed');
           inputs[inputNames[2]] = await OrtValue.fromList(
             [speed],
             [1], // Shape: [1]
           );
         }
+
+        debugPrint(
+            'All input tensors created successfully. Running inference...');
       } catch (e) {
         // In flutter_onnxruntime, tensors are automatically managed
         // No need to explicitly release them
