@@ -19,9 +19,9 @@ void main() {
 
     // 2. Initialize Kokoro with the model and voices paths
     const config = KokoroConfig(
-      modelPath: 'assets/kokoro-v1.0.onnx',
+      modelPath: 'assets/kokoro-v1.0.int8.onnx',
       voicesPath: 'assets/voices.json',
-      isInt8: false,
+      isInt8: true,
     );
     final kokoro = Kokoro(config);
     await kokoro.initialize();
@@ -55,7 +55,7 @@ void main() {
 
     // Get temporary directory to save the file
     final tempDir = await getTemporaryDirectory();
-    final filePath = '${tempDir.path}/japanese_sentences.wav';
+    final filePath = '${tempDir.path}/japanese_sentences_int8.wav';
     await File(filePath).writeAsBytes(wavBytes);
 
     // Play the audio file with just_audio
@@ -80,9 +80,9 @@ void main() {
 
     // 2. Initialize Kokoro with the model and voices paths
     const config = KokoroConfig(
-      modelPath: 'assets/kokoro-v1.0.onnx',
+      modelPath: 'assets/kokoro-v1.0.int8.onnx',
       voicesPath: 'assets/voices.json',
-      isInt8: false,
+      isInt8: true,
     );
     final kokoro = Kokoro(config);
     await kokoro.initialize();
@@ -116,7 +116,7 @@ void main() {
 
     // Get temporary directory to save the file
     final tempDir = await getTemporaryDirectory();
-    final filePath = '${tempDir.path}/medical_terms.wav';
+    final filePath = '${tempDir.path}/medical_terms_int8.wav';
     await File(filePath).writeAsBytes(wavBytes);
 
     // Play the audio file with just_audio
@@ -141,9 +141,9 @@ void main() {
 
     // 2. Initialize Kokoro with the model and voices paths
     const config = KokoroConfig(
-      modelPath: 'assets/kokoro-v1.0.onnx',
+      modelPath: 'assets/kokoro-v1.0.int8.onnx',
       voicesPath: 'assets/voices.json',
-      isInt8: false,
+      isInt8: true,
     );
     final kokoro = Kokoro(config);
     await kokoro.initialize();
@@ -179,7 +179,7 @@ void main() {
 
     // 6. Save the audio to a file in a writable directory
     final dir = await getApplicationDocumentsDirectory();
-    final outputPath = '${dir.path}/audio.wav';
+    final outputPath = '${dir.path}/audio_int8.wav';
     final file = File(outputPath);
     await file.writeAsBytes(wavBytes);
 

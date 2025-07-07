@@ -17,16 +17,20 @@ class TokenizerConfig {
 class KokoroConfig {
   /// Path to the model file
   final String modelPath;
-  
+
   /// Path to the voices file
   final String voicesPath;
-  
+
+  /// Whether the model is an int8 quantized model
+  final bool isInt8;
+
   /// Tokenizer configuration
   final TokenizerConfig? tokenizerConfig;
 
   const KokoroConfig({
     required this.modelPath,
     required this.voicesPath,
+    this.isInt8 = false,
     this.tokenizerConfig,
   });
 
@@ -45,16 +49,18 @@ class KokoroConfig {
       throw ArgumentError('Model path cannot be empty');
     }
   }
-  
+
   /// Create a copy of this config with updated values
   KokoroConfig copyWith({
     String? modelPath,
     String? voicesPath,
+    bool? isInt8,
     TokenizerConfig? tokenizerConfig,
   }) {
     return KokoroConfig(
       modelPath: modelPath ?? this.modelPath,
       voicesPath: voicesPath ?? this.voicesPath,
+      isInt8: isInt8 ?? this.isInt8,
       tokenizerConfig: tokenizerConfig ?? this.tokenizerConfig,
     );
   }

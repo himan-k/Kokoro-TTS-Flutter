@@ -7,8 +7,8 @@ class AudioUtils {
   /// 
   /// This is a Dart port of the trim function from Kokoro-ONNX
   /// Returns a tuple of the trimmed audio and the indices [start, end]
-  static (Float32List, List<int>) trimSilence(
-    Float32List audio, {
+  static (List<num>, List<int>) trimSilence(
+    List<num> audio, {
     double topDb = 60.0,
     int frameLength = 2048,
     int hopLength = 512,
@@ -38,15 +38,26 @@ class AudioUtils {
       );
 
       // Create trimmed audio buffer
-      final trimmedAudio = Float32List(end - start);
-      for (int i = 0; i < trimmedAudio.length; i++) {
-        trimmedAudio[i] = audio[start + i];
+      if (audio is Int8List) {
+        final trimmedAudio = Int8List(end - start);
+        for (int i = 0; i < trimmedAudio.length; i++) {
+          trimmedAudio[i] = audio[start + i];
+        }
+        return (trimmedAudio, [start, end]);
+      } else {
+        final trimmedAudio = Float32List(end - start);
+        for (int i = 0; i < trimmedAudio.length; i++) {
+          trimmedAudio[i] = audio[start + i] as double;
+        }
+        return (trimmedAudio, [start, end]);
       }
-
-      return (trimmedAudio, [start, end]);
     } else {
       // The entire signal is silent
-      return (Float32List(0), [0, 0]);
+      if (audio is Int8List) {
+        return (Int8List(0), [0, 0]);
+      } else {
+        return (Float32List(0), [0, 0]);
+      }
     }
   }
 
@@ -54,7 +65,7 @@ class AudioUtils {
   /// 
   /// Returns the RMS values for each frame in the audio
   static Float32List rms(
-    Float32List audio, {
+    List<num> audio, {
     required int frameLength,
     required int hopLength,
   }) {
@@ -83,7 +94,7 @@ class AudioUtils {
 
   /// Determines which frames in the audio are non-silent
   static List<bool> _signalToFrameNonSilent(
-    Float32List audio, {
+    List<num> audio, {
     required int frameLength,
     required int hopLength,
     required double topDb,
@@ -139,21 +150,36 @@ class AudioUtils {
   }
 
   /// Concatenates multiple audio buffers
-  static Float32List concatenateAudio(List<Float32List> audioBuffers) {
+  static List<num> concatenateAudio(List<List<num>> audioBuffers) {
+    if (audioBuffers.isEmpty) {
+      return Float32List(0);
+    }
+
     int totalLength = 0;
     for (final buffer in audioBuffers) {
       totalLength += buffer.length;
     }
 
-    final result = Float32List(totalLength);
-    int offset = 0;
-    for (final buffer in audioBuffers) {
-      for (int i = 0; i < buffer.length; i++) {
-        result[offset + i] = buffer[i];
+    if (audioBuffers.first is Int8List) {
+      final result = Int8List(totalLength);
+      int offset = 0;
+      for (final buffer in audioBuffers) {
+        for (int i = 0; i < buffer.length; i++) {
+          result[offset + i] = buffer[i] as int;
+        }
+        offset += buffer.length;
       }
-      offset += buffer.length;
+      return result;
+    } else {
+      final result = Float32List(totalLength);
+      int offset = 0;
+      for (final buffer in audioBuffers) {
+        for (int i = 0; i < buffer.length; i++) {
+          result[offset + i] = buffer[i] as double;
+        }
+        offset += buffer.length;
+      }
+      return result;
     }
-
-    return result;
   }
 }

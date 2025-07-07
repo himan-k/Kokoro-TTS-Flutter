@@ -56,7 +56,19 @@ class Tokenizer {
   Future<void> _initialize() async {
     if (_isInitialized) return;
 
-    await _g2p.initialize();
+    // HACK: The malsami package (v0.0.3) doesn't correctly load assets when used as a dependency in tests.
+    // We work around this by manually creating and populating our own Lexicon instance.
+    final lexicon = Lexicon(false); // false for American English
+
+    // Manually load and populate the dictionaries
+    final String goldJson = await rootBundle.loadString('packages/malsami/assets/us_gold.json');
+    lexicon.golds = lexicon.growDictionary(json.decode(goldJson) as Map<String, dynamic>);
+
+    final String silverJson = await rootBundle.loadString('packages/malsami/assets/us_silver.json');
+    lexicon.silvers = lexicon.growDictionary(json.decode(silverJson) as Map<String, dynamic>);
+
+    _g2p.lexicon = lexicon;
+
     await _loadVocabulary();
     await _loadLexicon();
     _isInitialized = true;

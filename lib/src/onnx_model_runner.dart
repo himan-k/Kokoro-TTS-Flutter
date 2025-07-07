@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// A class that handles TTS model inference for Kokoro TTS using ONNX Runtime
 ///
@@ -30,12 +34,17 @@ class OnnxModelRunner {
     try {
       // Get preferred providers - follow similar logic to kokoro-onnx
       final providers = _getPreferredProviders();
-      print('Using ONNX providers: $providers');
+      debugPrint('Using ONNX providers: $providers');
 
       // Load the model based on path
       if (modelPath.startsWith('assets/')) {
-        // Load from Flutter assets
-        _session = await _ort.createSessionFromAsset(modelPath);
+        // WORKAROUND: Load asset to a temporary file and then create session from path.
+        // This is necessary because createSessionFromAsset has issues in package integration tests.
+        final byteData = await rootBundle.load(modelPath);
+        final tempDir = await getTemporaryDirectory();
+        final tempPath = '${tempDir.path}/temp_model.onnx';
+        await File(tempPath).writeAsBytes(byteData.buffer.asUint8List());
+        _session = await _ort.createSession(tempPath);
       } else {
         // Load from file path
         _session = await _ort.createSession(modelPath);
@@ -58,15 +67,11 @@ class OnnxModelRunner {
     return providers;
   }
 
-  /// Run inference to generate audio from tokens and voice
-  ///
-  /// [tokens] is the list of token IDs to generate audio for
-  /// [voice] is the voice style vector to use
-  /// [speed] is the speed factor for the generated audio
-  Future<Float32List> runInference({
+    Future<List<num>> runInference({
     required List<int> tokens,
     required Float32List voice,
     required double speed,
+    bool isInt8 = false,
   }) async {
     if (_session == null || !_isInitialized) {
       throw Exception('Model not initialized. Call initialize() first.');
@@ -76,7 +81,7 @@ class OnnxModelRunner {
       // Padding tokens with start/end tokens (0) as in kokoro-onnx
       // This is crucial for matching the Python implementation
       final paddedTokens = [0, ...tokens, 0];
-      print('Padded tokens: $paddedTokens (length: ${paddedTokens.length})');
+      debugPrint('Padded tokens: $paddedTokens (length: ${paddedTokens.length})');
 
       // Get input names from session
       final inputNames = _session!.inputNames;
@@ -92,7 +97,7 @@ class OnnxModelRunner {
         // Create OrtValue tensors for each input
         // Support both older and newer model formats as in kokoro-onnx
         if (inputNames.contains('input_ids')) {
-          print('Using newer model format with input_ids');
+          debugPrint('Using newer model format with input_ids');
           // Newer model format
           // CRITICAL: Use Int64List for token IDs to match Python int64 type
           inputs['input_ids'] = await OrtValue.fromList(
@@ -111,7 +116,7 @@ class OnnxModelRunner {
             [1], // Shape: [1]
           );
         } else {
-          print('Using older model format with tokens');
+          debugPrint('Using older model format with tokens');
           // Older model format
           // CRITICAL: Use Int64List for token IDs to match Python int64 type
           inputs[inputNames[0]] = await OrtValue.fromList(
@@ -154,29 +159,23 @@ class OnnxModelRunner {
 
       // Get the data as a list and convert to doubles
       final List<dynamic> rawList = await outputValue.asList();
-      final List<double> outputList =
-          rawList.map((value) => value as double).toList();
+      if (isInt8) {
+        final List<int> outputList =
+            rawList.map((value) => value as int).toList();
+        final outputData = Int8List.fromList(outputList);
+        debugPrint(
+            'Dart: Raw ONNX Output (int8) (first 10): ${outputData.sublist(0, outputData.length > 10 ? 10 : outputData.length)}');
+        return outputData;
+      } else {
+        final List<double> outputList =
+            rawList.map((value) => value as double).toList();
 
-      // Convert the list to Float32List for audio processing
-      final outputData = Float32List.fromList(outputList);
-
-      // No need to manually release tensors in flutter_onnxruntime implementation
-      // as it handles resource management automatically
-
-      debugPrint(
-          'Dart: Raw ONNX Output (first 10): ${outputData.sublist(0, outputData.length > 10 ? 10 : outputData.length)}');
-      debugPrint(
-          'Dart: Raw ONNX Output (last 10): ${outputData.sublist(outputData.length > 10 ? outputData.length - 10 : 0)}');
-      double minVal = double.maxFinite;
-      double maxVal = double.negativeInfinity;
-      for (var v in outputData) {
-        if (v < minVal) minVal = v;
-        if (v > maxVal) maxVal = v;
+        // Convert the list to Float32List for audio processing
+        final outputData = Float32List.fromList(outputList);
+        debugPrint(
+            'Dart: Raw ONNX Output (float32) (first 10): ${outputData.sublist(0, outputData.length > 10 ? 10 : outputData.length)}');
+        return outputData;
       }
-      debugPrint(
-          'Dart: Raw ONNX Output min: $minVal, max: $maxVal, length: ${outputData.length}');
-
-      return outputData;
     } catch (e) {
       throw Exception('Failed to run inference: $e');
     }

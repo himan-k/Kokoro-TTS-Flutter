@@ -87,6 +87,31 @@ void main() async {
 }
 ```
 
+## Using Int8 Quantized Models
+
+This library supports `int8`-quantized ONNX models for improved performance and a smaller memory footprint. If you have an `int8` model, you can enable it by setting the `isInt8` flag in the `KokoroConfig`.
+
+1.  **Place your `int8` model** in the `assets` folder.
+2.  **Update your `KokoroConfig`** to point to the new model and set the `isInt8` flag to `true`.
+
+```dart
+import 'package:kokoro_tts_flutter/kokoro_tts_flutter.dart';
+
+void main() async {
+  // Example configuration for an int8 model
+  const config = KokoroConfig(
+    modelPath: 'assets/kokoro-v1.0-int8.onnx', // Path to your int8 model
+    voicesPath: 'assets/voices.json',
+    isInt8: true, // Enable int8 model support
+  );
+
+  final kokoro = Kokoro(config);
+  await kokoro.initialize();
+
+  // ... rest of your code
+}
+```
+
 ## Troubleshootings
 Additional configurations may be required for certain platforms.
 Check the [troubleshooting section](https://github.com/masicai/flutter_onnxruntime/blob/main/doc/troubleshooting.md) of flutter_onnxruntime library for the details.

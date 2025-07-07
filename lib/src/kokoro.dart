@@ -49,7 +49,9 @@ class Kokoro {
 
     // Initialize model
     // Load model from assets and pass to model runner
-    _modelRunner = OnnxModelRunner(modelPath: config.modelPath);
+    _modelRunner = OnnxModelRunner(
+      modelPath: config.modelPath,
+    );
     await _modelRunner.initialize();
 
     _isInitialized = true;
@@ -281,7 +283,7 @@ class Kokoro {
     final batches = _splitPhonemes(phonemes);
 
     // Process each batch
-    final audioBuffers = <Float32List>[];
+    final audioBuffers = <List<num>>[];
     for (final batch in batches) {
       debugPrint('Dart createTTS Batch: Processing phoneme batch: "$batch"');
       // Convert phonemes to token IDs
@@ -308,6 +310,7 @@ class Kokoro {
         tokens: tokens,
         voice: styleVector,
         speed: speed,
+        isInt8: config.isInt8,
       );
 
       debugPrint('Dart Batch: Raw audio from model (length: ${audio.length})');
@@ -322,8 +325,9 @@ class Kokoro {
                 .map((e) => e.toStringAsFixed(4))
                 .join(', ')
             : '';
-        double minVal = audio.reduce((a, b) => a < b ? a : b);
-        double maxVal = audio.reduce((a, b) => a > b ? a : b);
+        final doubleAudio = audio.map((e) => e.toDouble()).toList();
+        num minVal = doubleAudio.reduce((a, b) => a < b ? a : b);
+        num maxVal = doubleAudio.reduce((a, b) => a > b ? a : b);
         debugPrint('Dart Batch: Raw audio Start: [$audioStartStr]');
         if (audioEndStr.isNotEmpty && audio.length > 10) {
           // ensure audioEndStr is meaningful
@@ -336,7 +340,7 @@ class Kokoro {
       }
 
       // Apply trimming if requested
-      Float32List processedAudio = audio;
+      List<num> processedAudio = audio;
       if (trim) {
         // Trim leading and trailing silence
         final (trimmedAudio, _) = AudioUtils.trimSilence(audio);
@@ -406,10 +410,11 @@ class Kokoro {
         tokens: tokens,
         voice: voiceObj.getStyleVectorForTokens(tokens.length),
         speed: speed,
+        isInt8: config.isInt8,
       );
 
       // Apply trimming if requested
-      Float32List processedAudio = audio;
+      List<num> processedAudio = audio;
       if (trim) {
         // Trim leading and trailing silence
         final (trimmedAudio, _) = AudioUtils.trimSilence(audio);

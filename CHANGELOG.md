@@ -11,3 +11,6 @@
 
 ## 0.1.2
 - Update Malsami library version to 0.0.3
+
+## 0.2.0
+- Add int8 model support
