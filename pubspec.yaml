@@ -1,8 +1,8 @@
 name: kokoro_tts_flutter
 description: A Flutter implementation of Kokoro-TTS using ONNX Runtime
 version: 0.2.1
-homepage: https://github.com/yansigit
-repository: https://github.com/yansigit/kokoro_tts_flutter
+homepage: https://github.com/himan-k/Kokoro-TTS-Flutter
+repository: https://github.com/himan-k/Kokoro-TTS-Flutter
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
