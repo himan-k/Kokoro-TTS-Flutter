@@ -167,8 +167,20 @@ class OnnxModelRunner {
             'Dart: Raw ONNX Output (int8) (first 10): ${outputData.sublist(0, outputData.length > 10 ? 10 : outputData.length)}');
         return outputData;
       } else {
-        final List<double> outputList =
-            rawList.map((value) => value as double).toList();
+        // Handle potential nested lists from ONNX output
+        final List<double> outputList = [];
+        for (final value in rawList) {
+          if (value is List) {
+            // If it's a nested list, flatten it
+            for (final nestedValue in value) {
+              if (nestedValue is num) {
+                outputList.add(nestedValue.toDouble());
+              }
+            }
+          } else if (value is num) {
+            outputList.add(value.toDouble());
+          }
+        }
 
         // Convert the list to Float32List for audio processing
         final outputData = Float32List.fromList(outputList);
